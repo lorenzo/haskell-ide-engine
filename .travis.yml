@@ -32,7 +32,6 @@ matrix:
         artifacts: {paths: [./releases]}
 
 before_install:
-  - export BINARY_NAME="hadolint-$(uname -s)-$(uname -m)"
   # Download and unpack the stack executable
   - mkdir -p ~/.local/bin
   - |
@@ -46,7 +45,8 @@ before_install:
     fi
 
 install:
-  - travis_retry stack --no-terminal --install-ghc $ARGS --only-dependencies
+  - git submodule update --init
+  - travis_retry stack --no-terminal --install-ghc $ARGS build --only-dependencies
 
 script:
   - stack --no-terminal $ARGS install
