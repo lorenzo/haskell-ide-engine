@@ -57,11 +57,7 @@ after_success:
 - cp "$(which hie-wrapper)" "./releases/"
 
 before_deploy:
-- brew update > /dev/null
-- brew install upx
-- upx -q --best --ultra-brute "./releases/hie"
-- upx -q --best --ultra-brute "./releases/hie-wrapper-macos"
-- cp ./releases/hie "./releases/hie-${GHC_VER}-macos"
+- mv ./releases/hie "./releases/hie-${GHC_VER}-macos"
 
 deploy:
   provider: releases
