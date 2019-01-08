@@ -1,18 +1,21 @@
 sudo: false
 language: c
-os: osx
 
 addons:
   homebrew:
     packages:
-    - z3
     - stack
     - upx
+env:
+  global:
+    - STACK_ROOT=$HOME/.stack
+    - CACHE_DIR=$([ $TRAVIS_OS_NAME = 'windows' ] && echo "$HOME/AppData/Roaming/stack" || echo "$HOME/.cabal")
 
 cache:
+  branch: bash
   directories:
-  - $HOME/.stack
-  - $HOME/.cabal/
+  - $CACHE_DIR
+  - $STACK_ROOT
   - $TRAVIS_BUILD_DIR/.stack-work
   - $TRAVIS_BUILD_DIR/submodules/brittany/.stack-work
   - $TRAVIS_BUILD_DIR/submodules/HaRe/.stack-work
@@ -35,84 +38,129 @@ stages:
 jobs:
    include:
      - stage: setup
+       os: osx
        env: GHC_VER="8.6.3"
        script: &setup
-         - ls .stack-work/install/*/*/*/bin/hie || true
+         - ls $STACK_ROOT
+         - if [ $TRAVIS_OS_NAME == 'windows' ];
+           then choco install haskell-stack;
+           fi
          - travis_retry stack --no-terminal --install-ghc --stack-yaml=stack-$GHC_VER.yaml setup
+         - stack path
          # Build a big package to offload the next stage from doing too much work
-         - stack --stack-yaml=stack-$GHC_VER.yaml build lens
+         - stack --stack-yaml=stack-$GHC_VER.yaml build lens haskell-src-exts
 
      - stage: setup
+       os: windows
+       env: GHC_VER="8.6.3"
+       script: *setup
+
+     - stage: setup
+       os: osx
        env: GHC_VER="8.4.4"
        script: *setup
 
      - stage: setup
+       os: osx
        env: GHC_VER="8.4.3"
        script: *setup
 
      - stage: setup
+       os: osx
        env: GHC_VER="8.4.2"
        script: *setup
 
      - stage: setup
+       os: osx
        env: GHC_VER="8.2.2"
        script: *setup
 
      - stage: setup
+       os: osx
        env: GHC_VER="8.2.1"
        script: *setup
 
      - stage: dependencies
+       os: osx
        env: GHC_VER="8.6.3"
        script: &dependencies
+         - if [ $TRAVIS_OS_NAME == 'windows' ];
+           then choco install haskell-stack;
+           fi
          - travis_retry stack --no-terminal --install-ghc --stack-yaml=stack-$GHC_VER.yaml build --only-dependencies
 
+
      - stage: dependencies
+       os: windows
+       env: GHC_VER="8.6.3"
+       script: *dependencies
+
+     - stage: dependencies
+       os: osx
        env: GHC_VER="8.4.4"
        script: *dependencies
 
      - stage: dependencies
+       os: osx
        env: GHC_VER="8.4.3"
        script: *dependencies
 
      - stage: dependencies
+       os: osx
        env: GHC_VER="8.4.2"
        script: *dependencies
 
      - stage: dependencies
+       os: osx
        env: GHC_VER="8.2.2"
        script: *dependencies
 
      - stage: dependencies
+       os: osx
        env: GHC_VER="8.2.1"
        script: *dependencies
 
      - stage: test
+       os: osx
        env: GHC_VER="8.6.3"
        script: &test
+         - if [ $TRAVIS_OS_NAME == 'windows' ];
+           then choco install haskell-stack;
+           fi
          - stack --no-terminal --stack-yaml=stack-$GHC_VER.yaml install
 
      - stage: test
+       os: windows
+       env: GHC_VER="8.6.3"
+       script: *test
+
+     - stage: test
+       os: osx
        env: GHC_VER="8.4.4"
        script: *test
 
      - stage: test
+       os: osx
        env: GHC_VER="8.4.3"
        script: *test
 
      - stage: test
+       os: osx
        env: GHC_VER="8.4.2"
        script: *test
 
      - stage: test
+       os: osx
        env: GHC_VER="8.2.2"
        script: *test
 
      - stage: test
+       os: osx
        env: GHC_VER="8.2.1"
        script: *test
 
      - stage: deploy
+       os: osx
        env: GHC_VER="8.6.3"
        script: &deploy
          - mkdir -p $HOME/hie-macos
@@ -134,26 +182,54 @@ jobs:
           tags: true
 
      - stage: deploy
+       os: windows
+       env: GHC_VER="8.6.3"
+       script: &deployWin
+         - if [ $TRAVIS_OS_NAME == 'windows' ];
+           then choco install upx;
+           fi
+         - mkdir -p $HOME/hie-windows
+         - cp .stack-work/install/*/*/$GHC_VER/bin/hie $HOME/hie-windows
+         - cp .stack-work/install/*/*/$GHC_VER/bin/hie-wrapper $HOME/hie-windows
+         - upx --best $HOME/hie-windows/hie
+         - upx --best $HOME/hie-windows/hie-wrapper
+         - 7z a -r "hie-$GHC_VER-Windows" $HOME/hie-windows/*
+       deploy: &uploadWin
+         provider: releases
+         api_key:
+           secure: jhNwLD87iJZBA4yCd3bXUz4bcAxzPVTR7PjW9okQxXu5LBOYfTbUFsYCqnpEaItk1ot8WKwAxOt6tXkU/KkmDwhYCkii1Mt1r9mEKzDkjp68WhRlRm/3iCjlUcophXavUwcKZDtZHpii2bn+hne2Y8Eo8zbMIb1l5kd+mDH6WqP9AAMcgKSaHa7ZIkoc2S2TJ04nU8OeEW7Ts6lfOc6NAuxC9V28sewDUdWoAl8DIydsXvZWEAJ245Ir06zvg7KmdDuGmqHnO+cR2XjaRCs5sSDypexhECH+u8pgMe8Bziiy8aI1FHvRB8nEh/LvS+urGj1eoDH6DQiH+MerUFqFknn1wTw5fW9m3IsMpufVdlIMgQb1cqrr0osHyH9ckL/O7gtu7Fr67LXXPVq5TiUkIcLE6ut+DbCMs9LjePrHKW1JiEkqBBYB+MKkkKrPh3cUOjzuOkgnrpFgvFaBASSabqvVQvoDhCb+CxZQrSH1N1Qqj9zMuy6WFsmDmN/Pb940H3J9/isF/zkrPwrYbm02ZVV3882IEWuNGlr3NUW1Ik9lXPlPlen9BtJebaxhVa/RkRdyWIjk5Wlv9iGwuT/dtxqfJvD1EXodnxKAfc6QJISRwqpRBMIVIvRHRWOdY42AqHy/0NWG4J0gsTcBuBB4z5iwi9/zG7n60zcYU4N+9pg=
+         file:
+           - "hie-$GHC_VER-Windows.tar.gz"
+         skip_cleanup: true
+         draft: true
+         tag_name: "${TRAVIS_TAG}"
+
+     - stage: deploy
+       os: osx
        env: GHC_VER="8.4.4"
        script: *deploy
        deploy: *upload
 
      - stage: deploy
+       os: osx
        env: GHC_VER="8.4.3"
        script: *deploy
        deploy: *upload
 
      - stage: deploy
+       os: osx
        env: GHC_VER="8.4.2"
        script: *deploy
        deploy: *upload
 
      - stage: deploy
+       os: osx
        env: GHC_VER="8.2.2"
        script: *deploy
        deploy: *upload
 
      - stage: deploy
+       os: osx
        env: GHC_VER="8.2.1"
        script: *deploy
        deploy: *upload
